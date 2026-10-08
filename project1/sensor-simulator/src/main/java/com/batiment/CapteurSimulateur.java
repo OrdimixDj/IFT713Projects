@@ -19,12 +19,12 @@ public class CapteurSimulateur implements Runnable {
     @Override
     public void run() {
         System.out.println("hello");
-        //while (true) {
-            //publishTemp();
-            //publishLuminosite();
-            //publishOccupation();
-            //Thread.sleep(5000);
-        //}
+        while (true) {
+            publishTemp();
+            publishLuminosite();
+            publishOccupation();
+            Thread.sleep(5000);
+        }
     }
     // TODO : implémenter publishTemp(), publishLuminosite(), publishOccupation()
 }
