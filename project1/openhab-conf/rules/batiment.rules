@@ -1,0 +1,21 @@
+// batiment.rules — règle DSL : baisser chauffage si pièce vide
+rule "Economie energie salleA"
+when
+    Item SalleA_Occupation changed to OFF
+then
+    SalleA_Thermostat.sendCommand(18) // consigne 18°C quand vide
+end
+
+rule "Economie energie salleB"
+when
+    Item SalleB_Occupation changed to OFF
+then
+    SalleB_Thermostat.sendCommand(18) // consigne 18°C quand vide
+end
+
+rule "Economie energie cuisine"
+when
+    Item Cuisine_Occupation changed to OFF
+then
+    Cuisine_Thermostat.sendCommand(18) // consigne 18°C quand vide
+end

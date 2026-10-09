@@ -1,0 +1,15 @@
+Number SalleA_Luminosite "Luminosité salle A [%d lx]" { channel="mqtt:topic:salleA:luminosite" }
+Number SalleB_Luminosite "Luminosité salle B [%d lx]" { channel="mqtt:topic:salleB:luminosite" }
+Number Cuisine_Luminosite "Luminosité cuisine [%d lx]" { channel="mqtt:topic:cuisine:luminosite" }
+
+Number SalleA_Temperature "Température salle A [%d °C]" { channel="mqtt:topic:salleA:temperature" }
+Number SalleB_Temperature "Température salle B [%d °C]" { channel="mqtt:topic:salleB:temperature" }
+Number Cuisine_Temperature "Température cuisine [%d °C]" { channel="mqtt:topic:cuisine:temperature" }
+
+Switch SalleA_Occupation "Occupation salle A" { channel="mqtt:topic:salleA:occupation" }
+Switch SalleB_Occupation "Occupation salle B" { channel="mqtt:topic:salleB:occupation" }
+Switch Cuisine_Occupation "Occupation cuisine" { channel="mqtt:topic:cuisine:occupation" }
+
+Number SalleA_Thermostat "Consigne salle A [%d °C]" { channel="mqtt:topic:salleA:thermostat" }
+Number SalleB_Thermostat "Consigne salle B [%d °C]" { channel="mqtt:topic:salleB:thermostat" }
+Number Cuisine_Thermostat "Consigne cuisine [%d °C]" { channel="mqtt:topic:cuisine:thermostat" }
