@@ -31,7 +31,7 @@ public class CapteurSimulateur implements Runnable {
     }
 
     private void publishTemp() throws MqttException {
-        int temp = rnd.nextInt(12) + 18;
+        int temp = rnd.nextInt(16) + 15;
         client.publish("batiment/" + piece + "/capteur/temperature", new MqttMessage(String.valueOf(temp).getBytes()));
     }
 

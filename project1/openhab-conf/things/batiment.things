@@ -1,0 +1,23 @@
+// batiment.things
+Thing mqtt:broker:mosquitto [host="localhost", port=1883]
+Thing mqtt:topic:salleA (mqtt:broker:mosquitto) {
+    Channels:
+        Type number : temperature [stateTopic="batiment/salleA/capteur/temperature"]
+        Type number : luminosite [stateTopic="batiment/salleA/capteur/luminosite"]
+        Type switch : occupation [stateTopic="batiment/salleA/capteur/occupation", on="true", off="false"]
+        Type number : thermostat [commandTopic="batiment/salleA/thermostat"]
+}
+Thing mqtt:topic:salleB (mqtt:broker:mosquitto) {
+    Channels:
+        Type number : temperature [stateTopic="batiment/salleB/capteur/temperature"]
+        Type number : luminosite [stateTopic="batiment/salleB/capteur/luminosite"]
+        Type switch : occupation [stateTopic="batiment/salleB/capteur/occupation", on="true", off="false"]
+        Type number : thermostat [commandTopic="batiment/salleB/thermostat"]
+}
+Thing mqtt:topic:cuisine (mqtt:broker:mosquitto) {
+    Channels:
+        Type number : temperature [stateTopic="batiment/cuisine/capteur/temperature"]
+        Type number : luminosite [stateTopic="batiment/cuisine/capteur/luminosite"]
+        Type switch : occupation [stateTopic="batiment/cuisine/capteur/occupation", on="true", off="false"]
+        Type number : thermostat [commandTopic="batiment/cuisine/thermostat"]
+}
