@@ -1,5 +1,5 @@
 // batiment.things
-Thing mqtt:broker:mosquitto [host="localhost", port=1883]
+Bridge mqtt:broker:mosquitto [host="localhost", port=1883]
 Thing mqtt:topic:salleA (mqtt:broker:mosquitto) {
     Channels:
         Type number : temperature [stateTopic="batiment/salleA/capteur/temperature"]
