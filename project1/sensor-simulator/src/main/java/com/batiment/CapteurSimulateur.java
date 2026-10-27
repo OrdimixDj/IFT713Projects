@@ -9,11 +9,13 @@ import java.util.Random;
 public class CapteurSimulateur implements Runnable {
     private final String piece;
     private final MqttClient client;
+    private final double temperatureBase;
     private final Random rnd = new Random();
 
-    public CapteurSimulateur(String piece, MqttClient client) {
+    public CapteurSimulateur(String piece, MqttClient client, double temperatureBase) {
         this.piece = piece;
         this.client = client;
+        this.temperatureBase = temperatureBase;
     }
 
     @Override
@@ -31,9 +33,11 @@ public class CapteurSimulateur implements Runnable {
     }
 
     private void publishTemp() throws MqttException {
-        int temp = rnd.nextInt(16) + 15;
-        client.publish("batiment/" + piece + "/capteur/temperature", new MqttMessage(String.valueOf(temp).getBytes()));
+        double temp = temperatureBase + (rnd.nextDouble() - 0.5);
+        String valeur = String.format(java.util.Locale.ROOT, "%.1f", temp);
+        client.publish("batiment/" + piece + "/capteur/temperature", new MqttMessage(valeur.getBytes()));
     }
+
 
     private void publishLuminosite() throws MqttException {
         int lum = rnd.nextInt(1000);
