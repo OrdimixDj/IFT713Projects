@@ -5,8 +5,18 @@ import java.rmi.registry.Registry;
 
 import com.batiment.api.IAgentPiece;
 
+/**
+ * Client RMI de validation de la tâche 2.2 : lit les trois états d'une pièce,
+ * puis modifie la consigne de son thermostat.
+ */
 public class ClientTestRMI {
 
+    /**
+     * Lit la température, la luminosité et l'occupation d'un agent via RMI, puis
+     * lui envoie une nouvelle consigne et affiche son état complet.
+     * @param args {@code <piece> <consigne>} (par défaut : salleA et 19.0)
+     * @throws Exception si l'agent est introuvable ou injoignable
+     */
     public static void main(String[] args) throws Exception {
         String piece = args.length > 0 ? args[0] : "salleA";
         double consigne = args.length > 1 ? Double.parseDouble(args[1]) : 19.0;
