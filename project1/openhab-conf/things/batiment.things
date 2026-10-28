@@ -5,19 +5,19 @@ Thing mqtt:topic:salleA (mqtt:broker:mosquitto) {
         Type number : temperature [stateTopic="batiment/salleA/capteur/temperature"]
         Type number : luminosite [stateTopic="batiment/salleA/capteur/luminosite"]
         Type switch : occupation [stateTopic="batiment/salleA/capteur/occupation", on="true", off="false"]
-        Type number : thermostat [commandTopic="batiment/salleA/thermostat"]
+        Type number : thermostat [stateTopic="batiment/salleA/actuateur/thermostat", commandTopic="batiment/salleA/actuateur/thermostat"]
 }
 Thing mqtt:topic:salleB (mqtt:broker:mosquitto) {
     Channels:
         Type number : temperature [stateTopic="batiment/salleB/capteur/temperature"]
         Type number : luminosite [stateTopic="batiment/salleB/capteur/luminosite"]
         Type switch : occupation [stateTopic="batiment/salleB/capteur/occupation", on="true", off="false"]
-        Type number : thermostat [commandTopic="batiment/salleB/thermostat"]
+        Type number : thermostat [stateTopic="batiment/salleB/actuateur/thermostat", commandTopic="batiment/salleB/actuateur/thermostat"]
 }
 Thing mqtt:topic:cuisine (mqtt:broker:mosquitto) {
     Channels:
         Type number : temperature [stateTopic="batiment/cuisine/capteur/temperature"]
         Type number : luminosite [stateTopic="batiment/cuisine/capteur/luminosite"]
         Type switch : occupation [stateTopic="batiment/cuisine/capteur/occupation", on="true", off="false"]
-        Type number : thermostat [commandTopic="batiment/cuisine/thermostat"]
+        Type number : thermostat [stateTopic="batiment/cuisine/actuateur/thermostat", commandTopic="batiment/cuisine/actuateur/thermostat"]
 }
