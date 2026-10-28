@@ -13,3 +13,5 @@ Switch Cuisine_Occupation "Occupation cuisine" { channel="mqtt:topic:cuisine:occ
 Number SalleA_Thermostat "Consigne salle A [%.1f °C]" { channel="mqtt:topic:salleA:thermostat" }
 Number SalleB_Thermostat "Consigne salle B [%.1f °C]" { channel="mqtt:topic:salleB:thermostat" }
 Number Cuisine_Thermostat "Consigne cuisine [%.1f °C]" { channel="mqtt:topic:cuisine:thermostat" }
+
+String Coordinateur_Alerte "Alerte coordinateur [%s]"
