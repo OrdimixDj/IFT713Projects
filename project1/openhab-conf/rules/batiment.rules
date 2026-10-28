@@ -1,4 +1,4 @@
-// batiment.rules — règle DSL : baisser chauffage si pièce vide
+// Règle d'économie d'énergie : baisser le chauffage si la pièce est vide
 rule "Economie energie salleA"
 when
     Item SalleA_Occupation changed to OFF
@@ -18,4 +18,12 @@ when
     Item Cuisine_Occupation changed to OFF
 then
     Cuisine_Thermostat.sendCommand(18) // consigne 18°C quand vide
+end
+
+// Règle d'alerte : déclenchée par le coordinateur (via l'API REST) lors d'un déséquilibre thermique
+rule "Alerte desequilibre thermique"
+when
+    Item Coordinateur_Alerte received command
+then
+    logWarn("batiment", "ALERTE coordinateur : " + receivedCommand.toString)
 end

@@ -1,5 +1,10 @@
 package com.batiment.coordinateur;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -11,14 +16,13 @@ import java.util.Map;
 import com.batiment.api.IAgentPiece;
 
 /**
- * Coordinateur central du bâtiment.
+ * Coordinateur central du bâtiment :
  * Il se connecte via RMI aux trois agents de pièce et applique une politique
  * d'équilibrage thermique : si l'écart de température entre deux pièces adjacentes
  * dépasse {@value #ECART_MAX} °C, il demande à la pièce la plus chaude de baisser
- * sa consigne.
+ * sa consigne, et le signale également à openHAB via son API REST, ce qui déclenche la règle d’alerte.
  */
 public class CoordinateurBatiment {
-
     /** Port du registre RMI imposé par le sujet. */
     private static final int PORT_RMI = 2199;
 
@@ -36,6 +40,12 @@ public class CoordinateurBatiment {
 
     /** Stubs RMI des agents, indexés par nom de pièce. */
     private final Map<String, IAgentPiece> agents = new HashMap<>();
+
+    /** Item openHAB qui reçoit les alertes (via l'API REST). */
+    private static final String URL_ALERTE_OPENHAB = "http://localhost:8080/rest/items/Coordinateur_Alerte";
+
+    /** Client HTTP utilisé pour appeler l'API REST d'openHAB. */
+    private final HttpClient http = HttpClient.newHttpClient();
 
     /**
      * Récupère les trois agents dans le registre RMI.
@@ -88,6 +98,10 @@ public class CoordinateurBatiment {
                     agents.get(pieceChaude).setConsigneTemperature(consigne);
                     System.out.println(entete + " → DÉSÉQUILIBRE : consigne " + consigne
                             + " °C envoyée à " + pieceChaude);
+                    
+                    // L'alerte déclenche la règle DSL "Alerte desequilibre thermique"
+                    notifierOpenHab(String.format(Locale.ROOT, "%s-%s : écart %.1f °C, consigne %.1f °C envoyée à %s",
+                                    pieceA, pieceB, ecart, consigne, pieceChaude));
                 } else {
                     System.out.println(entete + " → équilibré, aucune action");
                 }
@@ -109,5 +123,33 @@ public class CoordinateurBatiment {
         if (agents.get(piece).isCapteurEnTimeout()) {
             System.out.println("[Coordinateur] " + piece + " : capteur en timeout, dernière valeur connue utilisée : " + temperature + " °C");
         }
+    }
+
+    /**
+     * Envoie un message à l'item openHAB Coordinateur_Alerte via l'API REST, qui déclenche la règle DSL d'alerte dans openHAB.
+     * @param message le texte de l'alerte
+     */
+    private void notifierOpenHab(String message) {
+        HttpRequest requete = HttpRequest.newBuilder(URI.create(URL_ALERTE_OPENHAB))
+                .header("Content-Type", "text/plain")
+                .POST(HttpRequest.BodyPublishers.ofString(message))
+                .build();
+        try {
+            HttpResponse<Void> reponse = http.send(requete, HttpResponse.BodyHandlers.discarding());
+            if (reponse.statusCode() >= 300) {
+                System.err.println("[Coordinateur] openHAB a refusé l'alerte (HTTP " + reponse.statusCode() + ")");
+            }
+        } catch (IOException | InterruptedException e) {
+            System.err.println("[Coordinateur] openHAB injoignable : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Constructeur utilisé par les tests : les agents sont fournis directement, sans passer par le registre RMI.
+     * Le constructeur n'est pas public, pour être visible uniquement par les tests mais pas par le reste du projet.
+     * @param agents agents indexés par nom de pièce
+     */
+    CoordinateurBatiment(Map<String, IAgentPiece> agents) {
+        this.agents.putAll(agents);
     }
 }
