@@ -28,6 +28,16 @@ public class AgentPiece extends UnicastRemoteObject implements IAgentPiece {
     /** Dernier état d'occupation reçu. */
     private volatile boolean occupation;
 
+    /** Délai sans message au-delà duquel les capteurs sont considérés en timeout. */
+    private static final long TIMEOUT_MS = 30_000;
+
+    /**
+     * Instant (en ms) de la dernière mesure reçue. Il est initialisé à la création
+     * de l'agent : si aucun capteur ne publie jamais, le timeout se déclenche aussi
+     * au bout de 30 s.
+     */
+    private volatile long derniereMesureMillis = System.currentTimeMillis();
+
     /** Dernière consigne de thermostat envoyée via {@link #setConsigneTemperature(double)}. */
     private volatile double consigne;
 
@@ -75,6 +85,9 @@ public class AgentPiece extends UnicastRemoteObject implements IAgentPiece {
                 case "luminosite"  -> luminosite  = Integer.parseInt(valeur);
                 case "occupation"  -> occupation  = Boolean.parseBoolean(valeur);
             }
+            
+            // Mesure valide reçue : on remet le compteur de timeout à zéro
+            derniereMesureMillis = System.currentTimeMillis();
         } catch (NumberFormatException e) {
             System.err.println("[" + nom + "] valeur invalide sur " + topic + " : " + valeur);
         }
@@ -130,8 +143,13 @@ public class AgentPiece extends UnicastRemoteObject implements IAgentPiece {
      */
     public String getEtatJson() throws RemoteException {
         return String.format(Locale.ROOT,
-                "{\"piece\":\"%s\",\"temperature\":%.1f,\"luminosite\":%d,\"occupee\":%b,\"consigne\":%.1f}",
-                nom, temperature, luminosite, occupation, consigne);
+            "{\"piece\":\"%s\",\"temperature\":%.1f,\"luminosite\":%d,\"occupee\":%b,\"consigne\":%.1f,\"timeout\":%b}",
+            nom, temperature, luminosite, occupation, consigne, isCapteurEnTimeout());
+    }
+
+    @Override
+    public boolean isCapteurEnTimeout() throws RemoteException {
+        return System.currentTimeMillis() - derniereMesureMillis > TIMEOUT_MS;
     }
 
 }

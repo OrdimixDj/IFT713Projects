@@ -44,4 +44,12 @@ public interface IAgentPiece extends Remote {
      * @throws RemoteException si l'agent est injoignable
      */
     String getEtatJson() throws RemoteException;
+
+    /**
+     * Indique si les capteurs de la pièce sont en timeout, c'est-à-dire si aucune
+     * mesure MQTT n'a été reçue depuis plus de 30 secondes.
+     * @return {@code true} si la pièce est en timeout ; les valeurs renvoyées par les getters sont alors les dernières valeurs connues
+     * @throws RemoteException si l'agent est injoignable
+     */
+    boolean isCapteurEnTimeout() throws RemoteException;
 }
