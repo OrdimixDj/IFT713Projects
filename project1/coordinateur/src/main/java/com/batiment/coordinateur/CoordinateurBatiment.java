@@ -54,34 +54,60 @@ public class CoordinateurBatiment {
      * {@value #ECART_MAX} °C, envoie à la pièce la plus chaude une consigne égale
      * à la moyenne des deux températures, arrondie à 0,1 °C, pour la rapprocher de
      * sa voisine.
-     * @throws RemoteException si un agent ne répond pas
+     * Si un agent ne répond pas ({@link RemoteException}), la
+     * paire concernée est ignorée et le cycle continue avec les autres. Si le capteur
+     * d'une pièce est en timeout, la dernière valeur connue (renvoyée par l'agent) est
+     * utilisée et le timeout est journalisé.
      */
-    public void equilibrerTemperatures() throws RemoteException {
+    public void equilibrerTemperatures() {
         for (String[] paire : PAIRES_ADJACENTES) {
             String pieceA = paire[0];
             String pieceB = paire[1];
 
-            // Lecture des deux températures via RMI
-            double tA = agents.get(pieceA).getTemperature();
-            double tB = agents.get(pieceB).getTemperature();
-            double ecart = Math.abs(tA - tB);
+            try {
+                // Lecture des deux températures via RMI
+                double tA = agents.get(pieceA).getTemperature();
+                double tB = agents.get(pieceB).getTemperature();
 
-            String entete = String.format(Locale.ROOT, "[Coordinateur] %s–%s : %.1f °C / %.1f °C (écart %.1f °C)",
-                    pieceA, pieceB, tA, tB, ecart);
+                // Timeout capteur : l'agent renvoie sa dernière valeur connue, on le signale
+                signalerTimeout(pieceA, tA);
+                signalerTimeout(pieceB, tB);
 
-            if (ecart > ECART_MAX) {
-                // On agit sur la pièce la plus chaude
-                String pieceChaude = tA > tB ? pieceA : pieceB;
+                double ecart = Math.abs(tA - tB);
 
-                // Moyenne arrondie à 0,1 °C
-                double consigne = Math.round((tA + tB) / 2.0 * 10.0) / 10.0;
+                String entete = String.format(Locale.ROOT, "[Coordinateur] %s–%s : %.1f °C / %.1f °C (écart %.1f °C)",
+                        pieceA, pieceB, tA, tB, ecart);
 
-                agents.get(pieceChaude).setConsigneTemperature(consigne);
-                System.out.println(entete + " → DÉSÉQUILIBRE : consigne " + consigne
-                        + " °C envoyée à " + pieceChaude);
-            } else {
-                System.out.println(entete + " → équilibré, aucune action");
+                if (ecart > ECART_MAX) {
+                    // On agit sur la pièce la plus chaude
+                    String pieceChaude = tA > tB ? pieceA : pieceB;
+
+                    // Moyenne arrondie à 0,1 °C
+                    double consigne = Math.round((tA + tB) / 2.0 * 10.0) / 10.0;
+
+                    agents.get(pieceChaude).setConsigneTemperature(consigne);
+                    System.out.println(entete + " → DÉSÉQUILIBRE : consigne " + consigne
+                            + " °C envoyée à " + pieceChaude);
+                } else {
+                    System.out.println(entete + " → équilibré, aucune action");
+                }
+            } catch (RemoteException e) {
+                // Un agent de la paire ne répond pas : on ignore cette paire et on continue le cycle
+                System.err.println("[Coordinateur] " + pieceA + "–" + pieceB
+                        + " : agent injoignable, paire ignorée (" + e.getClass().getSimpleName() + ")");
             }
+        }
+    }
+
+    /**
+     * Journalise un timeout capteur si l'agent de la pièce n'a reçu aucune mesure depuis plus de 30 secondes.
+     * @param piece nom de la pièce
+     * @param temperature dernière valeur connue de la température renvoyée par l'agent
+     * @throws RemoteException si l'agent ne répond pas
+     */
+    private void signalerTimeout(String piece, double temperature) throws RemoteException {
+        if (agents.get(piece).isCapteurEnTimeout()) {
+            System.out.println("[Coordinateur] " + piece + " : capteur en timeout, dernière valeur connue utilisée : " + temperature + " °C");
         }
     }
 }
