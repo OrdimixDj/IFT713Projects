@@ -106,9 +106,9 @@ public class CoordinateurBatiment {
                     System.out.println(entete + " → équilibré, aucune action");
                 }
             } catch (RemoteException e) {
-                // Un agent de la paire ne répond pas : on ignore cette paire et on continue le cycle
-                System.err.println("[Coordinateur] " + pieceA + "–" + pieceB
-                        + " : agent injoignable, paire ignorée (" + e.getClass().getSimpleName() + ")");
+                System.err.println("[Coordinateur] " + pieceA + "–" + pieceB + " : agent injoignable, paire ignorée (" + e.getClass().getSimpleName() + ")");
+                reconnecter(pieceA);
+                reconnecter(pieceB);
             }
         }
     }
@@ -151,5 +151,20 @@ public class CoordinateurBatiment {
      */
     CoordinateurBatiment(Map<String, IAgentPiece> agents) {
         this.agents.putAll(agents);
+    }
+
+    /**
+     * Relit le stub d'un agent dans le registre RMI après une panne.
+     * Un agent relancé se réenregistre sous le même nom avec un nouveau stub : le coordinateur peut donc l'interroger de nouveau dès le cycle suivant.
+     * Si l'agent est toujours arrêté, on réessaiera au prochain cycle.
+     * @param piece nom de la pièce dont l'agent doit être retrouvé
+     */
+    private void reconnecter(String piece) {
+        try {
+            Registry registry = LocateRegistry.getRegistry(PORT_RMI);
+            agents.put(piece, (IAgentPiece) registry.lookup("agent-" + piece));
+        } catch (RemoteException | NotBoundException e) {
+            // Registre ou agent toujours indisponible : nouvel essai au prochain cycle
+        }
     }
 }
