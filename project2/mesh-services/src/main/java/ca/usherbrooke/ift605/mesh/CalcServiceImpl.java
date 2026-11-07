@@ -26,7 +26,7 @@ public class CalcServiceImpl extends CalcServiceGrpc.CalcServiceImplBase {
                 break;
             default:
                 r = Double.NaN;
-                return;
+                break;
         }
 
         resp.onNext(CalcResponse.newBuilder()
