@@ -27,6 +27,13 @@ public class StorageServiceImpl extends StorageServiceGrpc.StorageServiceImplBas
 
     @Override
     public void healthCheck(HealthReq req, StreamObserver<HealthResp> resp) {
+        /*
+         * A UTILISER POUR LA DEMO: SIMULE UNE LATENCE
+         * try {
+         * Thread.sleep(600);
+         * } catch (InterruptedException e) {
+         * }
+         */
         resp.onNext(HealthUtil.build(startTime));
         resp.onCompleted();
     }
