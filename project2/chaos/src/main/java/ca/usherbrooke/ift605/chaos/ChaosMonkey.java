@@ -10,16 +10,31 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Injecte des pannes pour valider l'auto-réparation : tue un service aléatoire
+ * toutes les 30 secondes, puis observe la {@link KnowledgeBase} pour mesurer le
+ * temps de détection et de récupération (MTTR) assurés par le gestionnaire
+ * autonome.
+ */
 public class ChaosMonkey {
     private final KnowledgeBase kb;
     private final Map<String, Integer> ports;
 
+    /**
+     * @param kb    base de connaissances (KnowledgeBase) où lire l'état des
+     *              services
+     * @param ports table qui associe chaque service à son port gRPC
+     */
     public ChaosMonkey(KnowledgeBase kb, Map<String, Integer> ports) {
         this.kb = kb;
         this.ports = ports;
     }
 
-    // Tue un service aléatoire toutes les 30 secondes
+    /**
+     * Tue un service aléatoire toutes les 30 secondes et lance la mesure du MTTR.
+     *
+     * @param services liste des services qui peuvent tomber en panne
+     */
     public void demarrer(List<String> services) {
         ScheduledExecutorService sched = Executors.newScheduledThreadPool(1);
         sched.scheduleAtFixedRate(() -> {
@@ -33,6 +48,12 @@ public class ChaosMonkey {
         }, 30, 30, TimeUnit.SECONDS);
     }
 
+    /**
+     * Tue le processus qui écoute sur un port donné (uniquement le serveur en
+     * écoute, pas les clients connectés).
+     *
+     * @param port port gRPC du service à arrêter
+     */
     private void tuerParPort(int port) {
         try {
             new ProcessBuilder("bash", "-c", "lsof -ti tcp:" + port + " -sTCP:LISTEN | xargs kill")
@@ -42,6 +63,13 @@ public class ChaosMonkey {
         }
     }
 
+    /**
+     * Observe la KnowledgeBase jusqu'au retour normal SERVING du service, puis
+     * affiche le temps de détection, de récupération et le MTTR.
+     *
+     * @param service nom du service surveillé
+     * @param tPanne  instant, en ms, de l'injection de la panne
+     */
     private void mesurer(String service, long tPanne) {
         long tDetection = 0, tRecup = 0;
         while (tRecup == 0) {
@@ -62,6 +90,11 @@ public class ChaosMonkey {
                 service, tDetection - tPanne, tRecup - tPanne, tRecup - tDetection);
     }
 
+    /**
+     * Point d'entrée : démarre le gestionnaire autonome puis le ChaosMonkey.
+     *
+     * @param args non utilisés
+     */
     public static void main(String[] args) {
         GestionnaireAutonome gestionnaire = new GestionnaireAutonome();
         gestionnaire.demarrer();
