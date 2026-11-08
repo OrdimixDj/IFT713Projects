@@ -19,10 +19,10 @@ public class Executor {
     }
 
     private void redemarrer(String service) {
-        // pas de redémarrage si le service a été redémarré il y a moins de 20 secondes
+        // pas de redémarrage si le service a été redémarré il y a moins de 30 secondes
         long now = System.currentTimeMillis();
         Long last = dernierRedemarrage.get(service);
-        if (last != null && now - last < 20000)
+        if (last != null && now - last < 30000)
             return;
         dernierRedemarrage.put(service, now);
         kb.incrementerPannes(service);

@@ -39,4 +39,8 @@ public class GestionnaireAutonome {
     public static void main(String[] args) {
         new GestionnaireAutonome().demarrer();
     }
+
+    public KnowledgeBase getKb() {
+        return kb;
+    }
 }
