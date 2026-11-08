@@ -3,7 +3,17 @@ package ca.usherbrooke.ift605.mesh;
 import ca.usherbrooke.ift605.mesh.proto.*;
 import io.grpc.*;
 
+/**
+ * Client de test gRPC : vérifie manuellement que les trois services répondent
+ * en ouvrant un canal vers chacun et en affichant les réponses.
+ */
+
 public class TestClient {
+    /**
+     * Point d'entrée : appelle un RPC sur chaque service et affiche le résultat.
+     *
+     * @param args non utilisés
+     */
     public static void main(String[] args) {
         var calc = ManagedChannelBuilder.forAddress("localhost", 50051).usePlaintext().build();
         var sto = ManagedChannelBuilder.forAddress("localhost", 50052).usePlaintext().build();

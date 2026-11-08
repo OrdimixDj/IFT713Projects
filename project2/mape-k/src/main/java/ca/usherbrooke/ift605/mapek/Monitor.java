@@ -6,16 +6,30 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+/**
+ * Serveur IPC qui reçoit les mesures de santé envoyées par les sondes (JSON sur
+ * socket TCP) et les stocke dans la {@link KnowledgeBase}. Une mesure invalide
+ * est ignorée.
+ */
 public class Monitor {
     private final KnowledgeBase kb;
     private final ObjectMapper json = new ObjectMapper();
     private ServerSocket server;
 
+    /**
+     * @param kb base de connaissances (KnowledgeBase) où déposer les mesures reçues
+     */
     public Monitor(KnowledgeBase kb) {
         this.kb = kb;
     }
 
-    // reçoit les mesures des sondes IPC et les stocke dans la KnowledgeBase
+    /**
+     * Démarre l'écoute IPC : reçoit les mesures des sondes et les stocke dans la
+     * KnowledgeBase. Chaque connexion est traitée dans son propre thread.
+     *
+     * @param port port d'écoute IPC
+     * @throws IOException si le socket serveur ne peut pas être ouvert
+     */
     public void demarrer(int port) throws IOException {
         server = new ServerSocket(port);
         System.out.println("[Monitor] en écoute sur le port " + port);
