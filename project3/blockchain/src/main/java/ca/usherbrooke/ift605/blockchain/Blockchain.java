@@ -22,6 +22,10 @@ public class Blockchain<T> {
     public Block<T> getLatestBlock() {
         return blocks.get(blocks.size() - 1);
     }
+    
+    public int size() {
+        return blocks.size();
+    }
 
     public boolean isValid() {
         for (int i = 0; i < blocks.size(); i++) {

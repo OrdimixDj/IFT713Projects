@@ -12,6 +12,8 @@
     <modules>
         <module>crypto</module>
         <module>blockchain</module>
+        <module>transactions</module>
+        <module>consensus</module>
     </modules>
 
     <properties>

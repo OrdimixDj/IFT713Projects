@@ -17,6 +17,17 @@ public class Block<T> {
         this.header = new BlockHeader(1, previousHash, merkleRoot, System.currentTimeMillis(), 0);
     }
 
+    private Block(BlockHeader header, List<T> transactions) {
+        this.header = header;
+        this.transactions = transactions;
+    }
+
+    public Block<T> withNonce(long nonce) {
+        BlockHeader h = new BlockHeader(header.version(), header.previousHash(), header.merkleRoot(),
+                header.timestamp(), nonce);
+        return new Block<>(h, transactions);
+    }
+
     public BlockHeader getHeader() {
         return header;
     }

@@ -3,6 +3,7 @@ package ca.usherbrooke.ift605.crypto;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
@@ -13,6 +14,7 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.HexFormat;
 
 public final class CryptoUtils {
@@ -77,14 +79,29 @@ public final class CryptoUtils {
             signature.update(data);
             return signature.verify(sig);
         } catch (SignatureException e) {
-            return false; // signature mal formée → invalide
+            return false;
+            // signature mal formée donc invalide
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("Vérification ECDSA impossible", e);
         }
     }
 
     public static String publicKeyToAddress(PublicKey pk) {
-        return base58(sha256(pk.getEncoded()));
+        return addressFromBytes(pk.getEncoded());
+    }
+
+    // Même calcul que publicKeyToAddress, mais à partir des octets de la clé
+    public static String addressFromBytes(byte[] encodedPublicKey) {
+        return base58(sha256(encodedPublicKey));
+    }
+
+    // Reconstruit une PublicKey à partir de ses octets
+    public static PublicKey decodePublicKey(byte[] encodedPublicKey) {
+        try {
+            return KeyFactory.getInstance("EC").generatePublic(new X509EncodedKeySpec(encodedPublicKey));
+        } catch (GeneralSecurityException e) {
+            throw new IllegalArgumentException("Clé publique invalide", e);
+        }
     }
 
     private static String base58(byte[] input) {
