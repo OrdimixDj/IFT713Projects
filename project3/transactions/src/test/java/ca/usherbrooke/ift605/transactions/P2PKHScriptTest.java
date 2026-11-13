@@ -9,8 +9,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class P2PKHScriptTest {
 
+    // Données signées communes aux tests (joue le rôle de l'id de la transaction)
     private final byte[] data = "transaction".getBytes();
 
+    // Cas normal : Alice signe et fournit sa clé publique, l'UTXO est à son adresse
+    // : le script réussit
     @Test
     void scriptValide() {
         KeyPair alice = CryptoUtils.generateKeyPair();
@@ -19,7 +22,8 @@ class P2PKHScriptTest {
         assertTrue(P2PKHScript.execute(sig, alice.getPublic().getEncoded(), address, data));
     }
 
-    // OP_EQUALVERIFY échoue : la clé publique ne correspond pas à l'adresse
+    // OP_EQUALVERIFY échoue : Bob essaie de dépenser une UTXO à l'adresse d'Alice
+    // avec sa propre clé
     @Test
     void echec_cleQuiNeCorrespondPasALAdresse() {
         KeyPair alice = CryptoUtils.generateKeyPair();
@@ -29,7 +33,8 @@ class P2PKHScriptTest {
         assertFalse(P2PKHScript.execute(sig, bob.getPublic().getEncoded(), aliceAddress, data));
     }
 
-    // OP_CHECKSIG échoue : la signature porte sur d'autres données
+    // OP_CHECKSIG échoue : la bonne clé, mais la signature porte sur d'autres
+    // données
     @Test
     void echec_signatureInvalide() {
         KeyPair alice = CryptoUtils.generateKeyPair();

@@ -19,6 +19,7 @@ class UTXOSetTest {
     private UTXOSet utxoSet;
     private Transaction reward; // 50 BTC pour Alice
 
+    // Avant chaque test : Alice possède une seule UTXO de 50 BTC
     @BeforeEach
     void setUp() {
         alice = CryptoUtils.generateKeyPair();
@@ -30,16 +31,20 @@ class UTXOSetTest {
         utxoSet.addTransaction(reward);
     }
 
-    // Alice paie 10 BTC à Bob, se renvoie 39,9 BTC de monnaie : 0,1 BTC de frais
+    // Construit une transaction qui dépense les 50 BTC d'Alice : amountToBob pour
+    // Bob, le reste moins 0,1 BTC de frais rendu à Alice. signer permet de tester
+    // une signature faite avec la mauvaise clé
     private Transaction aliceToBob(KeyPair signer, long amountToBob) {
         Transaction tx = new Transaction(
                 List.of(new TransactionInput(reward.getId(), 0)),
                 List.of(new TransactionOutput(amountToBob, bobAddress),
-                        new TransactionOutput(50 * SATOSHIS_PER_BTC - amountToBob - SATOSHIS_PER_BTC / 10, aliceAddress)));
+                        new TransactionOutput(50 * SATOSHIS_PER_BTC - amountToBob - SATOSHIS_PER_BTC / 10,
+                                aliceAddress)));
         tx.sign(signer.getPrivate(), signer.getPublic());
         return tx;
     }
 
+    // Cas normal : transaction valide, et frais = entrées − sorties = 0,1 BTC
     @Test
     void transactionValide_etFrais() {
         Transaction tx = aliceToBob(alice, 10 * SATOSHIS_PER_BTC);
@@ -47,6 +52,7 @@ class UTXOSetTest {
         assertEquals(SATOSHIS_PER_BTC / 10, tx.getFee(utxoSet));
     }
 
+    // Règle a) : l'entrée référence une UTXO qui n'existe pas
     @Test
     void rejet_utxoInexistante() {
         Transaction tx = new Transaction(
@@ -56,6 +62,7 @@ class UTXOSetTest {
         assertFalse(utxoSet.isValid(tx));
     }
 
+    // Règle b) : on essaie de créer 51 BTC à partir de 50 BTC
     @Test
     void rejet_sortiesSuperieuresAuxEntrees() {
         Transaction tx = new Transaction(
@@ -65,11 +72,14 @@ class UTXOSetTest {
         assertFalse(utxoSet.isValid(tx));
     }
 
+    // Règle c) : Bob signe une transaction qui dépense l'UTXO d'Alice
     @Test
     void rejet_mauvaiseSignature() {
         assertFalse(utxoSet.isValid(aliceToBob(bob, 10 * SATOSHIS_PER_BTC)));
     }
 
+    // Une fois la 1re transaction appliquée, l'UTXO d'Alice est dépensée : la 2e,
+    // qui la réutilise, est rejetée
     @Test
     void rejet_doubleDepense() {
         Transaction first = aliceToBob(alice, 10 * SATOSHIS_PER_BTC);

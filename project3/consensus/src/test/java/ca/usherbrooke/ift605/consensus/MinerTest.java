@@ -10,13 +10,15 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MinerTest {
 
+    // Le hash du bloc miné commence bien par 4 zéros hexadécimaux
     @Test
     void blocMine_respecteLaDifficulte() {
         Block<String> mined = Miner.mine(new Block<>(Blockchain.GENESIS_PREVIOUS_HASH, List.of("tx")), 4);
         assertTrue(mined.computeHash().startsWith("0000"));
     }
 
-    // Les blocs minés restent chaînés correctement
+    // Changer le nonce ne casse pas le chaînage : des blocs minés à la suite
+    // forment une chaîne valide
     @Test
     void chaineDeBlocsMines_valide() {
         Blockchain<String> chain = new Blockchain<>();
