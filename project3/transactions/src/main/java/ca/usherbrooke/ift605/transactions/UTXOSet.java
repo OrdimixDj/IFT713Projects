@@ -28,6 +28,17 @@ public class UTXOSet {
         return utxos.get(new OutPoint(txId, index));
     }
 
+    // Toutes les UTXO sont verrouillées sur cette adresse
+    public Map<OutPoint, TransactionOutput> findByAddress(String address) {
+        Map<OutPoint, TransactionOutput> result = new HashMap<>();
+        for (Map.Entry<OutPoint, TransactionOutput> e : utxos.entrySet()) {
+            if (e.getValue().scriptPubKey().equals(address)) {
+                result.put(e.getKey(), e.getValue());
+            }
+        }
+        return result;
+    }
+
     public boolean isValid(Transaction tx) {
         if (tx.isCoinbase()) {
             return false; // une coinbase ne dépense rien : elle n'est pas validée par ces règles

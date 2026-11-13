@@ -1,6 +1,8 @@
 package ca.usherbrooke.ift605.transactions;
 
-public class TransactionInput {
+import java.io.Serializable;
+
+public class TransactionInput implements Serializable {
 
     private final String txId;
     private final int outputIndex;
