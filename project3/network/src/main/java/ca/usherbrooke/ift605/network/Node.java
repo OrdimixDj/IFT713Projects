@@ -28,28 +28,52 @@ import java.util.Set;
 
 import static ca.usherbrooke.ift605.transactions.Transaction.SATOSHIS_PER_BTC;
 
+/**
+ * Nœud du réseau P2P : serveur TCP qui écoute sur un port configurable, avec sa
+ * propre copie de la chaîne, de l'ensemble UTXO et du mempool.
+ */
 public class Node {
 
+    /**
+     * Nombre maximal de pairs connus (selon l'énoncé : max 8 connexions actives).
+     */
     public static final int MAX_PEERS = 8;
+    /** Difficulté de minage fixe du réseau. */
     public static final int DIFFICULTY = 3;
+    /** Récompense d'un bloc (50 BTC), en satoshis. */
     public static final long BLOCK_REWARD = 50 * SATOSHIS_PER_BTC;
 
     private final int port;
     private final List<Integer> peers = new ArrayList<>();
-    private final Set<String> seen = new HashSet<>();
+    private final Set<String> seen = new HashSet<>(); // hash des tx et blocs déjà traités (anti-boucle)
     private final Blockchain<Transaction> chain = new Blockchain<>();
     private final UTXOSet utxoSet = new UTXOSet();
     private final List<Transaction> mempool = new ArrayList<>();
     private ServerSocket serverSocket;
 
+    /**
+     * Crée un nœud.
+     *
+     * @param port le port TCP d'écoute, qui sert aussi d'identifiant du nœud
+     */
     public Node(int port) {
         this.port = port;
     }
 
+    /**
+     * Démarre le serveur TCP sur localhost : un thread accepte les connexions,
+     * et chaque connexion est traitée dans son propre thread.
+     *
+     * @throws IOException si le port est déjà utilisé
+     */
     public void start() throws IOException {
         serverSocket = new ServerSocket();
+        // Permet de relancer un nœud sur le même port juste après l'avoir arrêté
         serverSocket.setReuseAddress(true);
         serverSocket.bind(new InetSocketAddress("localhost", port));
+        // Thread d'acceptation : attend les connexions entrantes ; chacune est traitée
+        // dans son propre thread pour que le nœud puisse recevoir plusieurs messages en
+        // même temps. Les threads "démons" n'empêchent pas le programme de se terminer
         Thread acceptor = new Thread(() -> {
             while (!serverSocket.isClosed()) {
                 try {
@@ -66,10 +90,17 @@ public class Node {
         acceptor.start();
     }
 
+    /**
+     * Arrête le serveur TCP.
+     *
+     * @throws IOException si la fermeture échoue
+     */
     public void stop() throws IOException {
         serverSocket.close();
     }
 
+    // Lit un message reçu et le traite selon son type ; HELLO et GET_BLOCKS
+    // reçoivent une réponse
     @SuppressWarnings("unchecked")
     private void handle(Socket socket) {
         try (socket; ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {
@@ -86,6 +117,7 @@ public class Node {
                     yield null;
                 }
             };
+            // La réponse repart sur la même connexion TCP
             if (reply != null) {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 out.writeObject(reply);
@@ -96,11 +128,15 @@ public class Node {
         }
     }
 
+    // Envoie un message à un pair ; attend une réponse seulement si expectReply =
+    // true
     private Object send(int peerPort, Message msg, boolean expectReply) {
         try (Socket socket = new Socket("localhost", peerPort);
-             ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream())) {
+                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream())) {
             out.writeObject(msg);
             out.flush();
+            // Le flux de lecture est ouvert seulement si on attend une réponse (HELLO,
+            // GET_BLOCKS)
             if (expectReply) {
                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 return in.readObject();
@@ -112,13 +148,21 @@ public class Node {
         }
     }
 
+    /**
+     * Rejoint le réseau : contacte le nœud d'amorçage (seed node), obtient sa liste
+     * de pairs, puis se présente à chacun d'eux.
+     *
+     * @param seedPort le port du nœud d'amorçage
+     */
     @SuppressWarnings("unchecked")
     public void connect(int seedPort) {
         List<Integer> discovered = (List<Integer>) send(seedPort, new Message(MessageType.HELLO, port, null), true);
+        // Le nœud d'amorçage devient notre premier pair
         addPeer(seedPort);
         if (discovered != null) {
             for (int peer : discovered) {
                 if (addPeer(peer)) {
+                    // On se présente à chaque pair découvert pour qu'il nous ajoute aussi
                     send(peer, new Message(MessageType.HELLO, port, null), true);
                 }
             }
@@ -126,6 +170,7 @@ public class Node {
         log("Connecté au réseau — pairs : " + getPeers());
     }
 
+    // Un nouveau nœud se présente : on l'ajoute et on lui renvoie nos autres pairs
     private synchronized ArrayList<Integer> onHello(int senderPort) {
         ArrayList<Integer> known = new ArrayList<>(peers);
         known.remove(Integer.valueOf(senderPort));
@@ -133,6 +178,7 @@ public class Node {
         return known;
     }
 
+    // Ajoute un pair s'il est nouveau et que la limite de 8 n'est pas atteinte
     private synchronized boolean addPeer(int peerPort) {
         if (peerPort == port || peers.contains(peerPort) || peers.size() >= MAX_PEERS) {
             return false;
@@ -141,6 +187,8 @@ public class Node {
         return true;
     }
 
+    // Gossip/flooding : diffuse à tous les pairs sauf à celui qui a envoyé le
+    // message
     private void gossip(MessageType type, Serializable payload, int exceptPort) {
         List<Integer> targets = getPeers();
         targets.remove(Integer.valueOf(exceptPort));
@@ -149,7 +197,18 @@ public class Node {
         }
     }
 
+    /**
+     * Soumet une transaction créée localement (par un portefeuille) : vérification
+     * locale, ajout au mempool, puis diffusion à tous les pairs.
+     *
+     * @param tx la transaction signée
+     * @return {@code true} si elle est acceptée ; {@code false} si elle est déjà
+     *         connue, invalide ou si c'est une double dépense
+     */
     public boolean submitTransaction(Transaction tx) {
+        // La validation se fait sous verrou, mais la diffusion se fait hors verrou : si
+        // deux nœuds s'envoyaient des messages en gardant leur verrou, ils pourraient
+        // se bloquer mutuellement
         boolean accepted;
         synchronized (this) {
             accepted = acceptTransaction(tx);
@@ -161,6 +220,8 @@ public class Node {
         return accepted;
     }
 
+    // Transaction reçue d'un pair : si elle est acceptée, on la retransmet aux
+    // autres
     private void onTransaction(Transaction tx, int senderPort) {
         boolean accepted;
         synchronized (this) {
@@ -174,6 +235,7 @@ public class Node {
         }
     }
 
+    // Critères de retransmission : nouveauté, pas de double dépense, script valide
     private boolean acceptTransaction(Transaction tx) {
         if (!seen.add(tx.getId())) {
             return false;
@@ -190,6 +252,8 @@ public class Node {
         return true;
     }
 
+    // Double dépense : une entrée absente des UTXO ou déjà dépensée par une tx du
+    // mempool
     private boolean isDoubleSpend(Transaction tx) {
         Set<OutPoint> spentInMempool = new HashSet<>();
         for (Transaction pending : mempool) {
@@ -206,6 +270,13 @@ public class Node {
         return false;
     }
 
+    /**
+     * Mine un bloc contenant la coinbase et toutes les transactions du mempool,
+     * l'ajoute à la chaîne locale, puis le diffuse.
+     *
+     * @param rewardAddress l'adresse qui reçoit la récompense de 50 BTC
+     * @return le bloc miné
+     */
     public Block<Transaction> mineBlock(String rewardAddress) {
         Block<Transaction> mined;
         synchronized (this) {
@@ -227,6 +298,7 @@ public class Node {
         return mined;
     }
 
+    // Bloc reçu d'un pair : s'il est accepté, on le retransmet aux autres
     private void onBlock(Block<Transaction> block, int senderPort) {
         boolean accepted;
         synchronized (this) {
@@ -240,13 +312,19 @@ public class Node {
         }
     }
 
+    // Vérification d'un bloc: prolonge la chaîne locale, PoW, racine de Merkle,
+    // transactions valides sans double dépense ; puis mise à jour des UTXO et purge
+    // du mempool.
     private boolean acceptBlock(Block<Transaction> block) {
         String hash = block.computeHash();
+        // Bloc déjà traité, reçu par un autre chemin du gossip : on l'ignore
         if (!seen.add(hash)) {
             return false;
         }
+        // Le bloc doit prolonger notre chaîne, un bloc concurrent est rejeté
         String expectedPrevious = chain.size() == 0
-                ? Blockchain.GENESIS_PREVIOUS_HASH : chain.getLatestBlock().computeHash();
+                ? Blockchain.GENESIS_PREVIOUS_HASH
+                : chain.getLatestBlock().computeHash();
         if (!expectedPrevious.equals(block.getHeader().previousHash())) {
             log("Bloc rejeté : ne prolonge pas la chaîne locale");
             return false;
@@ -260,9 +338,12 @@ public class Node {
             log("Bloc rejeté : racine de Merkle incorrecte");
             return false;
         }
+        // Chaque transaction doit être valide et aucune UTXO ne peut être dépensée deux
+        // fois dans le même bloc
         Set<OutPoint> spentInBlock = new HashSet<>();
         for (Transaction tx : block.getTransactions()) {
-            if (tx.isCoinbase()) continue;
+            if (tx.isCoinbase())
+                continue;
             for (TransactionInput in : tx.getInputs()) {
                 if (!spentInBlock.add(new OutPoint(in.getTxId(), in.getOutputIndex()))) {
                     log("Bloc rejeté : double dépense dans le bloc");
@@ -275,16 +356,20 @@ public class Node {
             }
         }
 
+        // Bloc accepté, on l'ajoute et on applique ses transactions à l'ensemble UTXO
         chain.addBlock(block);
         for (Transaction tx : block.getTransactions()) {
             utxoSet.addTransaction(tx);
         }
+        // Retire les transactions confirmées et celles devenues invalides
         Set<String> confirmed = new HashSet<>();
-        for (Transaction tx : block.getTransactions()) confirmed.add(tx.getId());
+        for (Transaction tx : block.getTransactions())
+            confirmed.add(tx.getId());
         mempool.removeIf(tx -> confirmed.contains(tx.getId()) || !utxoSet.isValid(tx));
         return true;
     }
 
+    // Renvoie les blocs à partir de la hauteur demandée
     private synchronized ArrayList<Block<Transaction>> onGetBlocks(int fromHeight) {
         ArrayList<Block<Transaction>> blocks = new ArrayList<>();
         for (int h = fromHeight; h < chain.size(); h++) {
@@ -293,68 +378,95 @@ public class Node {
         return blocks;
     }
 
+    /**
+     * Synchronisation d'un nœud arrivé en retard : télécharge et valide les blocs
+     * qui lui manquent.
+     *
+     * @param fromPort le port du pair qui fournit les blocs
+     */
     @SuppressWarnings("unchecked")
     public void synchronize(int fromPort) {
         int fromHeight;
         synchronized (this) {
             fromHeight = chain.size();
         }
-        List<Block<Transaction>> blocks =
-                (List<Block<Transaction>>) send(fromPort, new Message(MessageType.GET_BLOCKS, port, fromHeight), true);
+        List<Block<Transaction>> blocks = (List<Block<Transaction>>) send(fromPort,
+                new Message(MessageType.GET_BLOCKS, port, fromHeight), true);
         int added = 0;
         synchronized (this) {
             if (blocks != null) {
+                // Chaque bloc téléchargé est vérifié comme un bloc reçu par gossip, on ne fait
+                // pas confiance au pair
                 for (Block<Transaction> b : blocks) {
-                    if (acceptBlock(b)) added++;
+                    if (acceptBlock(b))
+                        added++;
                 }
             }
         }
         log("Synchronisation : " + added + " blocs téléchargés depuis Node-" + fromPort);
     }
 
+    /**
+     * @param address l'adresse
+     * @return les UTXO de cette adresse dans l'ensemble UTXO local
+     */
     public synchronized Map<OutPoint, TransactionOutput> findUtxos(String address) {
         return utxoSet.findByAddress(address);
     }
 
+    /** @return une copie de la liste des ports des pairs connus */
     public synchronized List<Integer> getPeers() {
         return new ArrayList<>(peers);
     }
 
+    /** @return le nombre de blocs de la chaîne locale */
     public synchronized int getChainHeight() {
         return chain.size();
     }
 
+    /**
+     * @param height la hauteur du bloc (0 = genesis)
+     * @return le bloc à cette hauteur dans la chaîne locale
+     */
     public synchronized Block<Transaction> getBlock(int height) {
         return chain.getBlock(height);
     }
 
+    /**
+     * @param txId l'id de la transaction
+     * @return {@code true} si la transaction est en attente dans le mempool local
+     */
     public synchronized boolean hasInMempool(String txId) {
         return mempool.stream().anyMatch(tx -> tx.getId().equals(txId));
     }
 
+    /** @return le port d'écoute du nœud */
     public int getPort() {
         return port;
     }
 
-    // ===== Affichage =====
-
+    // Affiche une ligne préfixée par Node-port
     private void log(String text) {
         System.out.println("[Node-" + port + "] " + text);
     }
 
+    // "Alice → Bob (10 BTC)" : émetteur, destinataire et montant de la sortie 0
     static String describe(Transaction tx) {
         String from = AddressBook.nameOf(CryptoUtils.addressFromBytes(tx.getInputs().get(0).getPublicKey()));
         TransactionOutput payment = tx.getOutputs().get(0);
         return from + " → " + AddressBook.nameOf(payment.scriptPubKey()) + " (" + btc(payment.amount()) + " BTC)";
     }
 
+    // Convertit des satoshis en BTC, sans zéros inutiles (5000000000 devient 50)
     static String btc(long satoshis) {
         return BigDecimal.valueOf(satoshis, 8).stripTrailingZeros().toPlainString();
     }
 
+    // [6002, 6003] → "6002, 6003"
     private static String joinPorts(List<Integer> ports) {
         List<String> s = new ArrayList<>();
-        for (int p : ports) s.add(String.valueOf(p));
+        for (int p : ports)
+            s.add(String.valueOf(p));
         return String.join(", ", s);
     }
 }
