@@ -2,12 +2,13 @@ package ca.usherbrooke.ift605.blockchain;
 
 import ca.usherbrooke.ift605.crypto.CryptoUtils;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 
-public class Block<T> {
-
+public class Block<T> implements Serializable {
+    
     private final BlockHeader header;
     private final List<T> transactions;
 

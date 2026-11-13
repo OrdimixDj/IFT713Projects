@@ -1,7 +1,7 @@
 package ca.usherbrooke.ift605.transactions;
 
 import ca.usherbrooke.ift605.crypto.CryptoUtils;
-
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Transaction {
+public class Transaction implements Serializable {
 
     public static final long SATOSHIS_PER_BTC = 100_000_000L;
 
